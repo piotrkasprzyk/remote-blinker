@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
 import cherrypy
-import controller
 import json
 
 import answers
@@ -13,6 +12,7 @@ cherrypy.config.update({'request.show_tracebacks': False})
 
 use_led = False
 if use_led:
+    import controller
     serial_connector = controller.SerialConnector()
 
 
@@ -35,10 +35,12 @@ class TaskServer(object):
         return GithubTask.handle(login, **kwargs)
 
     @cherrypy.expose
+    @cherrypy.tools.json_in()
     def krs(self, login, **kwargs):
         return KrsTask.handle(login, **kwargs)
 
     @cherrypy.expose
+    @cherrypy.tools.json_in()
     def wiki(self, login, **kwargs):
         return WikiTask.handle(login, **kwargs)
 
@@ -48,11 +50,6 @@ class Task(object):
     color = '000000'
     password = None
     previous = None
-
-    @classmethod
-    def get_request_body():
-        cl = cherrypy.request.headers['Content-Length']
-        return cherrypy.request.body.read(int(cl))
 
     @classmethod
     def handle(cls, login, **kwargs):
@@ -83,11 +80,12 @@ class Task(object):
 
     @classmethod
     def verify_previous(cls, login, **kwargs):
+        body = cherrypy.request.json
         if not cls.previous:
             return
-        if 'prev' not in kwargs:
+        if 'prev' not in body:
             raise cherrypy.HTTPError(403)
-        if cls.previous.password == kwargs['prev']:
+        if cls.previous.password != body['prev']:
             raise cherrypy.HTTPError(403)
 
     @classmethod
@@ -121,7 +119,8 @@ class KrsTask(Task):
 
     @classmethod
     def verify_success(cls, login, **kwargs):
-        if 'postal' not in kwargs or kwargs['postal'] != answers.postal:
+        body = cherrypy.request.json
+        if 'postal' not in body or body['postal'] != answers.postal:
             return False
         return True
 
@@ -132,7 +131,9 @@ class WikiTask(Task):
 
     @classmethod
     def verify_success(cls, login, **kwargs):
-        if 'battle_url' not in kwargs or kwargs['battle_url'] != answers.battle_url:
+        body = cherrypy.request.json
+        print(body)
+        if 'battle_url' not in body or body['battle_url'] != answers.battle_url:
             return False
         return True
 
